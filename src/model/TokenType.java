@@ -1,5 +1,12 @@
 package model;
 
 public enum TokenType {
-	KEYWORD, IDENTIFIER, NUMBER, OPERATOR, SEPARATOR, WHITESPACE, UNKNOWN
+    KEYWORD,
+    IDENTIFIER,
+    NUMBER,
+    STRING,    
+    OPERATOR,
+    SEPARATOR,
+    WHITESPACE,
+    UNKNOWN
 }

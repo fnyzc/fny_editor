@@ -7,77 +7,108 @@ import java.util.*;
 
 public class Lexer {
 
-    private static final Set<String> KEYWORDS = Set.of("if", "else", "while", "function", "return");
-    private static final Set<String> SEPARATORS = Set.of("(", ")", "{", "}", ";", ",");
-    private static final Set<String> OPERATORS = Set.of("=", "==", "+", "-", "*", "/", "<", ">", "<=", ">=", "!=");
+    private static final Set<String> keywords = Set.of(
+        "if", "else", "while", "function", "return", "break", "continue", "print"
+    );
 
-    public List<Token> tokenize(String input) {
-        List<Token> tokens = new ArrayList<>();
-        int i = 0;
+public List<Token> tokenize(String input) {
+    List<Token> tokens = new ArrayList<>();
+    int position = 0;
 
-        while (i < input.length()) {
-            char c = input.charAt(i);
+    while (position < input.length()) {
+        char current = input.charAt(position);
 
-            // WHITESPACE
-            if (Character.isWhitespace(c)) {
-                int start = i;
-                while (i < input.length() && Character.isWhitespace(input.charAt(i))) i++;
-                tokens.add(new Token(TokenType.WHITESPACE, input.substring(start, i), start, i));
-                continue;
+        // Whitespace
+        if (Character.isWhitespace(current)) {
+            int start = position;
+            while (position < input.length() && Character.isWhitespace(input.charAt(position))) {
+                position++;
             }
-
-            // IDENTIFIER or KEYWORD
-            if (Character.isLetter(c) || c == '_') {
-                int start = i++;
-                while (i < input.length() &&
-                        (Character.isLetterOrDigit(input.charAt(i)) || input.charAt(i) == '_')) i++;
-                String word = input.substring(start, i);
-                TokenType type = KEYWORDS.contains(word) ? TokenType.KEYWORD : TokenType.IDENTIFIER;
-                tokens.add(new Token(type, word, start, i));
-                continue;
-            }
-
-            // NUMBER
-            if (Character.isDigit(c)) {
-                int start = i;
-                boolean hasDot = false;
-                while (i < input.length() &&
-                        (Character.isDigit(input.charAt(i)) || (!hasDot && input.charAt(i) == '.'))) {
-                    if (input.charAt(i) == '.') hasDot = true;
-                    i++;
-                }
-                tokens.add(new Token(TokenType.NUMBER, input.substring(start, i), start, i));
-                continue;
-            }
-
-            // OPERATOR
-            boolean matched = false;
-            for (int len = 2; len >= 1; len--) {
-                if (i + len <= input.length()) {
-                    String op = input.substring(i, i + len);
-                    if (OPERATORS.contains(op)) {
-                        tokens.add(new Token(TokenType.OPERATOR, op, i, i + len));
-                        i += len;
-                        matched = true;
-                        break;
-                    }
-                }
-            }
-            if (matched) continue;
-
-            // SEPARATOR
-            String chStr = String.valueOf(c);
-            if (SEPARATORS.contains(chStr)) {
-                tokens.add(new Token(TokenType.SEPARATOR, chStr, i, i + 1));
-                i++;
-                continue;
-            }
-
-            // UNKNOWN
-            tokens.add(new Token(TokenType.UNKNOWN, chStr, i, i + 1));
-            i++;
+            tokens.add(new Token(TokenType.WHITESPACE, input.substring(start, position), start, position));
+            continue;
         }
 
-        return tokens;
+        // Identifiers / Keywords
+        if (Character.isLetter(current)) {
+            int start = position;
+            while (position < input.length() &&
+                    (Character.isLetterOrDigit(input.charAt(position)) || input.charAt(position) == '_')) {
+                position++;
+            }
+            String word = input.substring(start, position);
+            TokenType type = keywords.contains(word) ? TokenType.KEYWORD : TokenType.IDENTIFIER;
+            tokens.add(new Token(type, word, start, position));
+            continue;
+        }
+
+        // Numbers
+        if (Character.isDigit(current)) {
+            int start = position;
+            while (position < input.length() && Character.isDigit(input.charAt(position))) {
+                position++;
+            }
+            tokens.add(new Token(TokenType.NUMBER, input.substring(start, position), start, position));
+            continue;
+        }
+
+        // Strings
+        if (current == '"') {
+            int start = position;
+            position++; // skip opening quote
+            StringBuilder str = new StringBuilder();
+
+            while (position < input.length() && input.charAt(position) != '"') {
+                str.append(input.charAt(position));
+                position++;
+            }
+
+            if (position < input.length() && input.charAt(position) == '"') {
+                position++; // skip closing quote
+                tokens.add(new Token(TokenType.STRING, "\"" + str + "\"", start, position));
+            } else {
+                tokens.add(new Token(TokenType.UNKNOWN, "\"" + str, start, position));
+            }
+            continue;
+        }
+
+        // Operators
+     // Multi-character operators
+        if ("=+-*/<>!&|".indexOf(current) != -1) {
+            int start = position;
+            String op = String.valueOf(current);
+            position++;
+
+            // Lookahead for two-character operators
+            if (position < input.length()) {
+                char next = input.charAt(position);
+                if ((current == '=' && next == '=') ||        // ==
+                    (current == '!' && next == '=') ||        // !=
+                    (current == '<' && next == '=') ||        // <=
+                    (current == '>' && next == '=') ||        // >=
+                    (current == '&' && next == '&') ||        // &&
+                    (current == '|' && next == '|')) {        // ||
+                    op += next;
+                    position++;
+                }
+            }
+
+            tokens.add(new Token(TokenType.OPERATOR, op, start, position));
+            continue;
+        }
+
+
+        // Separators
+        if ("();{},".indexOf(current) != -1) {
+            tokens.add(new Token(TokenType.SEPARATOR, String.valueOf(current), position, position + 1));
+            position++;
+            continue;
+        }
+
+        // Unknown
+        tokens.add(new Token(TokenType.UNKNOWN, String.valueOf(current), position, position + 1));
+        position++;
     }
+
+    return tokens;
+}
 }

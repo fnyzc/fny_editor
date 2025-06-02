@@ -17,47 +17,199 @@ public class Parser {
         return position < tokens.size() ? tokens.get(position) : null;
     }
 
-    private Token consume(TokenType expectedType) {
+    private Token consume(TokenType expected) {
         Token token = peek();
-        if (token != null && token.type == expectedType) {
+        if (token != null && token.type == expected) {
             position++;
             return token;
         } else {
-            throw new RuntimeException("Expected " + expectedType + " but got " + token);
+            throw new RuntimeException("Expected " + expected + " but got " + token);
         }
     }
 
+    private Token consume(TokenType expected, String value) {
+        Token token = peek();
+        if (token != null && token.type == expected && token.value.equals(value)) {
+            position++;
+            return token;
+        } else {
+            throw new RuntimeException("Expected " + expected + " with value '" + value + "', but got " + token);
+        }
+    }
+
+    private boolean match(TokenType type, String value) {
+        Token t = peek();
+        return t != null && t.type == type && t.value.equals(value);
+    }
+
+    public void parseProgram() {
+        while (peek() != null) {
+            parseStatement();
+        }
+        System.out.println("✅ Program parsed successfully.");
+    }
+
     public void parseStatement() {
-        parseAssignment();
-        consume(TokenType.SEPARATOR); // ;
-        System.out.println("✅ Statement parsed successfully.");
+        if (match(TokenType.KEYWORD, "if")) {
+            parseIfStatement();
+        } else if (match(TokenType.KEYWORD, "while")) {
+            parseWhileStatement();
+        } else if (match(TokenType.KEYWORD, "function")) {
+            parseFunctionDeclaration();
+        } else if (match(TokenType.KEYWORD, "return")) {
+            consume(TokenType.KEYWORD, "return");
+            parseExpression();
+            consume(TokenType.SEPARATOR, ";");
+        } else if (match(TokenType.KEYWORD, "break") || match(TokenType.KEYWORD, "continue")) {
+            consume(TokenType.KEYWORD);
+            consume(TokenType.SEPARATOR, ";");
+        } else if (match(TokenType.KEYWORD, "print")) {
+            consume(TokenType.KEYWORD, "print");
+            consume(TokenType.SEPARATOR, "(");
+            parseExpression();
+            consume(TokenType.SEPARATOR, ")");
+            consume(TokenType.SEPARATOR, ";");
+        } else if (match(TokenType.SEPARATOR, "{")) {
+            parseBlock();
+        } else if (peek().type == TokenType.IDENTIFIER) {
+            parseAssignment();
+            consume(TokenType.SEPARATOR, ";");
+        } else {
+            throw new RuntimeException("Bilinmeyen ifade türü: " + peek());
+        }
     }
 
     private void parseAssignment() {
         consume(TokenType.IDENTIFIER);
         Token eq = consume(TokenType.OPERATOR);
-        if (!eq.value.equals("=")) {
-            throw new RuntimeException("Expected '=' in assignment.");
-        }
+        if (!eq.value.equals("=")) throw new RuntimeException("Expected '='");
         parseExpression();
     }
 
-    private void parseExpression() {
-        parseTerm();
-        Token next = peek();
-        if (next != null && next.type == TokenType.OPERATOR && next.value.equals("+")) {
-            consume(TokenType.OPERATOR); // +
-            parseTerm();
+    private void parseIfStatement() {
+        consume(TokenType.KEYWORD, "if");
+        consume(TokenType.SEPARATOR, "(");
+        parseExpression();
+        consume(TokenType.SEPARATOR, ")");
+        parseBlock();
+        if (match(TokenType.KEYWORD, "else")) {
+            consume(TokenType.KEYWORD, "else");
+            parseBlock();
         }
     }
 
-    private void parseTerm() {
-        Token t = peek();
-        if (t == null) throw new RuntimeException("Unexpected end of input.");
-        if (t.type == TokenType.IDENTIFIER || t.type == TokenType.NUMBER) {
-            consume(t.type);
+    private void parseWhileStatement() {
+        consume(TokenType.KEYWORD, "while");
+        consume(TokenType.SEPARATOR, "(");
+        parseExpression();
+        consume(TokenType.SEPARATOR, ")");
+        parseBlock();
+    }
+
+    private void parseFunctionDeclaration() {
+        consume(TokenType.KEYWORD, "function");
+        consume(TokenType.IDENTIFIER);
+        consume(TokenType.SEPARATOR, "(");
+        if (peek().type == TokenType.IDENTIFIER) {
+            parseParameterList();
+        }
+        consume(TokenType.SEPARATOR, ")");
+        parseBlock();
+    }
+
+    private void parseParameterList() {
+        consume(TokenType.IDENTIFIER);
+        while (match(TokenType.SEPARATOR, ",")) {
+            consume(TokenType.SEPARATOR, ",");
+            consume(TokenType.IDENTIFIER);
+        }
+    }
+
+    private void parseBlock() {
+        consume(TokenType.SEPARATOR, "{");
+        while (peek() != null && !match(TokenType.SEPARATOR, "}")) {
+            parseStatement();
+        }
+        consume(TokenType.SEPARATOR, "}");
+    }
+
+    private void parseExpression() {
+        parseOr();
+    }
+
+    private void parseOr() {
+        parseAnd();
+        while (match(TokenType.OPERATOR, "||")) {
+            consume(TokenType.OPERATOR, "||");
+            parseAnd();
+        }
+    }
+
+    private void parseAnd() {
+        parseEquality();
+        while (match(TokenType.OPERATOR, "&&")) {
+            consume(TokenType.OPERATOR, "&&");
+            parseEquality();
+        }
+    }
+
+    private void parseEquality() {
+        parseComparison();
+        while (match(TokenType.OPERATOR, "==") || match(TokenType.OPERATOR, "!=")) {
+            consume(TokenType.OPERATOR);
+            parseComparison();
+        }
+    }
+
+    private void parseComparison() {
+        parseAdditive();
+        while (match(TokenType.OPERATOR, "<") || match(TokenType.OPERATOR, ">") ||
+               match(TokenType.OPERATOR, "<=") || match(TokenType.OPERATOR, ">=")) {
+            consume(TokenType.OPERATOR);
+            parseAdditive();
+        }
+    }
+
+    private void parseAdditive() {
+        parseMultiplicative();
+        while (match(TokenType.OPERATOR, "+") || match(TokenType.OPERATOR, "-")) {
+            consume(TokenType.OPERATOR);
+            parseMultiplicative();
+        }
+    }
+
+    private void parseMultiplicative() {
+        parseUnary();
+        while (match(TokenType.OPERATOR, "*") || match(TokenType.OPERATOR, "/")) {
+            consume(TokenType.OPERATOR);
+            parseUnary();
+        }
+    }
+    private void parseUnary() {
+        if (match(TokenType.OPERATOR, "-")) {
+            consume(TokenType.OPERATOR, "-");
+            parseUnary();
+        } else if (match(TokenType.OPERATOR, "!")) {
+            consume(TokenType.OPERATOR, "!");
+            parseUnary();
         } else {
-            throw new RuntimeException("Expected identifier or number but got " + t);
+            parsePrimary();
+        }
+    }
+
+
+    private void parsePrimary() {
+        Token t = peek();
+        if (t.type == TokenType.NUMBER || t.type == TokenType.STRING || t.type == TokenType.IDENTIFIER) {
+            consume(t.type);
+        } else if (match(TokenType.KEYWORD, "true") || match(TokenType.KEYWORD, "false")) {
+            consume(TokenType.KEYWORD);
+        } else if (match(TokenType.SEPARATOR, "(")) {
+            consume(TokenType.SEPARATOR, "(");
+            parseExpression();
+            consume(TokenType.SEPARATOR, ")");
+        } else {
+            throw new RuntimeException("Unexpected token in expression: " + t);
         }
     }
 }
