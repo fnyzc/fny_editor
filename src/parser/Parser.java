@@ -72,18 +72,34 @@ public class Parser {
         } else if (match(TokenType.SEPARATOR, "{")) {
             parseBlock();
         } else if (peek().type == TokenType.IDENTIFIER) {
-            parseAssignment();
+            parseAssignmentOrFunctionCall();
             consume(TokenType.SEPARATOR, ";");
         } else {
             throw new RuntimeException("Bilinmeyen ifade türü: " + peek());
         }
     }
 
-    private void parseAssignment() {
-        consume(TokenType.IDENTIFIER);
-        Token eq = consume(TokenType.OPERATOR);
-        if (!eq.value.equals("=")) throw new RuntimeException("Expected '='");
-        parseExpression();
+    private void parseAssignmentOrFunctionCall() {
+        Token identifier = consume(TokenType.IDENTIFIER);
+        if (match(TokenType.SEPARATOR, "(")) {
+            parseFunctionCall(identifier);
+        } else {
+            Token eq = consume(TokenType.OPERATOR);
+            if (!eq.value.equals("=")) throw new RuntimeException("Expected '='");
+            parseExpression();
+        }
+    }
+
+    private void parseFunctionCall(Token identifier) {
+        consume(TokenType.SEPARATOR, "(");
+        if (!match(TokenType.SEPARATOR, ")")) {
+            parseExpression();
+            while (match(TokenType.SEPARATOR, ",")) {
+                consume(TokenType.SEPARATOR, ",");
+                parseExpression();
+            }
+        }
+        consume(TokenType.SEPARATOR, ")");
     }
 
     private void parseIfStatement() {
@@ -185,23 +201,23 @@ public class Parser {
             parseUnary();
         }
     }
+
     private void parseUnary() {
-        if (match(TokenType.OPERATOR, "-")) {
-            consume(TokenType.OPERATOR, "-");
-            parseUnary();
-        } else if (match(TokenType.OPERATOR, "!")) {
-            consume(TokenType.OPERATOR, "!");
+        if (match(TokenType.OPERATOR, "-") || match(TokenType.OPERATOR, "!")) {
+            consume(TokenType.OPERATOR);
             parseUnary();
         } else {
             parsePrimary();
         }
     }
 
-
     private void parsePrimary() {
         Token t = peek();
         if (t.type == TokenType.NUMBER || t.type == TokenType.STRING || t.type == TokenType.IDENTIFIER) {
-            consume(t.type);
+            Token identifier = consume(t.type);
+            if (peek() != null && match(TokenType.SEPARATOR, "(")) {
+                parseFunctionCall(identifier);
+            }
         } else if (match(TokenType.KEYWORD, "true") || match(TokenType.KEYWORD, "false")) {
             consume(TokenType.KEYWORD);
         } else if (match(TokenType.SEPARATOR, "(")) {
