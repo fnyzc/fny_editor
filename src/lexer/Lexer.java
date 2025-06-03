@@ -7,9 +7,12 @@ import java.util.*;
 
 public class Lexer {
 
-    private static final Set<String> keywords = Set.of(
-        "if", "else", "while", "function", "return", "break", "continue", "print"
-    );
+	private static final Set<String> keywords = Set.of(
+		    "if", "else", "while", "function", "return", "break", "continue", "print",
+		    "for", "do", "switch", "case", "default", "true", "false", "null"
+		);
+
+
 
 public List<Token> tokenize(String input) {
     List<Token> tokens = new ArrayList<>();
@@ -78,15 +81,12 @@ public List<Token> tokenize(String input) {
             String op = String.valueOf(current);
             position++;
 
-            // Lookahead for two-character operators
             if (position < input.length()) {
                 char next = input.charAt(position);
-                if ((current == '=' && next == '=') ||        // ==
-                    (current == '!' && next == '=') ||        // !=
-                    (current == '<' && next == '=') ||        // <=
-                    (current == '>' && next == '=') ||        // >=
-                    (current == '&' && next == '&') ||        // &&
-                    (current == '|' && next == '|')) {        // ||
+                if ((current == '=' && next == '=') || (current == '!' && next == '=') ||
+                    (current == '<' && next == '=') || (current == '>' && next == '=') ||
+                    (current == '&' && next == '&') || (current == '|' && next == '|') ||
+                    (current == '+' && next == '+') || (current == '-' && next == '-')) {
                     op += next;
                     position++;
                 }
@@ -98,11 +98,12 @@ public List<Token> tokenize(String input) {
 
 
         // Separators
-        if ("();{},".indexOf(current) != -1) {
+        if ("();{}:,.".indexOf(current) != -1) {
             tokens.add(new Token(TokenType.SEPARATOR, String.valueOf(current), position, position + 1));
             position++;
             continue;
         }
+
 
         // Unknown
         tokens.add(new Token(TokenType.UNKNOWN, String.valueOf(current), position, position + 1));

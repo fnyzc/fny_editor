@@ -42,6 +42,11 @@ public class Parser {
         return t != null && t.type == type && t.value.equals(value);
     }
 
+    private boolean match(TokenType type) {
+        Token t = peek();
+        return t != null && t.type == type;
+    }
+
     public void parseProgram() {
         while (peek() != null) {
             parseStatement();
@@ -54,6 +59,12 @@ public class Parser {
             parseIfStatement();
         } else if (match(TokenType.KEYWORD, "while")) {
             parseWhileStatement();
+        } else if (match(TokenType.KEYWORD, "do")) {
+            parseDoWhileStatement();
+        } else if (match(TokenType.KEYWORD, "for")) {
+            parseForStatement();
+        } else if (match(TokenType.KEYWORD, "switch")) {
+            parseSwitchStatement();
         } else if (match(TokenType.KEYWORD, "function")) {
             parseFunctionDeclaration();
         } else if (match(TokenType.KEYWORD, "return")) {
@@ -72,34 +83,26 @@ public class Parser {
         } else if (match(TokenType.SEPARATOR, "{")) {
             parseBlock();
         } else if (peek().type == TokenType.IDENTIFIER) {
-            parseAssignmentOrFunctionCall();
-            consume(TokenType.SEPARATOR, ";");
-        } else {
+            // Peek ahead to see if this is a function call
+            Token next = tokens.size() > position + 1 ? tokens.get(position + 1) : null;
+            if (next != null && next.type == TokenType.SEPARATOR && next.value.equals("(")) {
+                parseExpression(); // function call is a valid expression
+                consume(TokenType.SEPARATOR, ";");
+            } else {
+                parseAssignment();
+                consume(TokenType.SEPARATOR, ";");
+            }
+        }
+ else {
             throw new RuntimeException("Bilinmeyen ifade türü: " + peek());
         }
     }
 
-    private void parseAssignmentOrFunctionCall() {
-        Token identifier = consume(TokenType.IDENTIFIER);
-        if (match(TokenType.SEPARATOR, "(")) {
-            parseFunctionCall(identifier);
-        } else {
-            Token eq = consume(TokenType.OPERATOR);
-            if (!eq.value.equals("=")) throw new RuntimeException("Expected '='");
-            parseExpression();
-        }
-    }
-
-    private void parseFunctionCall(Token identifier) {
-        consume(TokenType.SEPARATOR, "(");
-        if (!match(TokenType.SEPARATOR, ")")) {
-            parseExpression();
-            while (match(TokenType.SEPARATOR, ",")) {
-                consume(TokenType.SEPARATOR, ",");
-                parseExpression();
-            }
-        }
-        consume(TokenType.SEPARATOR, ")");
+    private void parseAssignment() {
+        consume(TokenType.IDENTIFIER);
+        Token eq = consume(TokenType.OPERATOR);
+        if (!eq.value.equals("=")) throw new RuntimeException("Expected '='");
+        parseExpression();
     }
 
     private void parseIfStatement() {
@@ -120,6 +123,53 @@ public class Parser {
         parseExpression();
         consume(TokenType.SEPARATOR, ")");
         parseBlock();
+    }
+
+    private void parseDoWhileStatement() {
+        consume(TokenType.KEYWORD, "do");
+        parseBlock();
+        consume(TokenType.KEYWORD, "while");
+        consume(TokenType.SEPARATOR, "(");
+        parseExpression();
+        consume(TokenType.SEPARATOR, ")");
+        consume(TokenType.SEPARATOR, ";");
+    }
+
+    private void parseForStatement() {
+        consume(TokenType.KEYWORD, "for");
+        consume(TokenType.SEPARATOR, "(");
+        parseAssignment();
+        consume(TokenType.SEPARATOR, ";");
+        parseExpression();
+        consume(TokenType.SEPARATOR, ";");
+        parseAssignment();
+        consume(TokenType.SEPARATOR, ")");
+        parseBlock();
+    }
+
+    private void parseSwitchStatement() {
+        consume(TokenType.KEYWORD, "switch");
+        consume(TokenType.SEPARATOR, "(");
+        parseExpression();
+        consume(TokenType.SEPARATOR, ")");
+        consume(TokenType.SEPARATOR, "{");
+        while (match(TokenType.KEYWORD, "case") || match(TokenType.KEYWORD, "default")) {
+            if (match(TokenType.KEYWORD, "case")) {
+                consume(TokenType.KEYWORD, "case");
+                parseExpression();
+                consume(TokenType.SEPARATOR, ":");
+                while (!match(TokenType.KEYWORD, "case") && !match(TokenType.KEYWORD, "default") && !match(TokenType.SEPARATOR, "}")) {
+                    parseStatement();
+                }
+            } else {
+                consume(TokenType.KEYWORD, "default");
+                consume(TokenType.SEPARATOR, ":");
+                while (!match(TokenType.SEPARATOR, "}")) {
+                    parseStatement();
+                }
+            }
+        }
+        consume(TokenType.SEPARATOR, "}");
     }
 
     private void parseFunctionDeclaration() {
@@ -172,7 +222,11 @@ public class Parser {
     private void parseEquality() {
         parseComparison();
         while (match(TokenType.OPERATOR, "==") || match(TokenType.OPERATOR, "!=")) {
-            consume(TokenType.OPERATOR);
+            if (match(TokenType.OPERATOR, "==")) {
+                consume(TokenType.OPERATOR, "==");
+            } else {
+                consume(TokenType.OPERATOR, "!=");
+            }
             parseComparison();
         }
     }
@@ -212,20 +266,29 @@ public class Parser {
     }
 
     private void parsePrimary() {
-        Token t = peek();
-        if (t.type == TokenType.NUMBER || t.type == TokenType.STRING || t.type == TokenType.IDENTIFIER) {
-            Token identifier = consume(t.type);
-            if (peek() != null && match(TokenType.SEPARATOR, "(")) {
-                parseFunctionCall(identifier);
+        if (match(TokenType.IDENTIFIER)) {
+            consume(TokenType.IDENTIFIER);
+            if (match(TokenType.SEPARATOR, "(")) {
+                consume(TokenType.SEPARATOR, "(");
+                if (!match(TokenType.SEPARATOR, ")")) {
+                    parseExpression();
+                    while (match(TokenType.SEPARATOR, ",")) {
+                        consume(TokenType.SEPARATOR, ",");
+                        parseExpression();
+                    }
+                }
+                consume(TokenType.SEPARATOR, ")");
             }
+        } else if (match(TokenType.NUMBER) || match(TokenType.STRING)) {
+            consume(peek().type);
         } else if (match(TokenType.KEYWORD, "true") || match(TokenType.KEYWORD, "false")) {
-            consume(TokenType.KEYWORD);
+            consume(TokenType.KEYWORD, peek().value);
         } else if (match(TokenType.SEPARATOR, "(")) {
             consume(TokenType.SEPARATOR, "(");
             parseExpression();
             consume(TokenType.SEPARATOR, ")");
         } else {
-            throw new RuntimeException("Unexpected token in expression: " + t);
+            throw new RuntimeException("Unexpected token in expression: " + peek());
         }
     }
 }
