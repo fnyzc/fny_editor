@@ -8,5 +8,6 @@ public enum TokenType {
     OPERATOR,
     SEPARATOR,
     WHITESPACE,
+    COMMENT,
     UNKNOWN
 }

@@ -27,7 +27,7 @@ import java.util.HashMap; class SyntaxHighlighterGUI {
         TOKEN_COLORS.put(TokenType.SEPARATOR, Color.MAGENTA);
         TOKEN_COLORS.put(TokenType.UNKNOWN, Color.GRAY);
         TOKEN_COLORS.put(TokenType.STRING, new Color(200, 50, 120));
-
+        TOKEN_COLORS.put(TokenType.COMMENT, Color.gray);
     }
 
     private Timer highlightTimer;

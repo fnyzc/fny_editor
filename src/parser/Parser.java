@@ -14,8 +14,12 @@ public class Parser {
     }
 
     private Token peek() {
+        while (position < tokens.size() && tokens.get(position).type == TokenType.COMMENT) {
+            position++; // skip comments
+        }
         return position < tokens.size() ? tokens.get(position) : null;
     }
+
 
     private Token consume(TokenType expected) {
         Token token = peek();
@@ -23,7 +27,7 @@ public class Parser {
             position++;
             return token;
         } else {
-            throw new RuntimeException("Expected " + expected + " but got " + token);
+            throw new RuntimeException("Expected " + expected + " but got " + (token != null ? token.type + " : '" + token.value + "'" : "null"));
         }
     }
 
@@ -82,28 +86,89 @@ public class Parser {
             consume(TokenType.SEPARATOR, ";");
         } else if (match(TokenType.SEPARATOR, "{")) {
             parseBlock();
+        } else if (peek().type == TokenType.KEYWORD && isTypeKeyword(peek().value)) {
+            parseVariableDeclaration();
         } else if (peek().type == TokenType.IDENTIFIER) {
-            // Peek ahead to see if this is a function call
             Token next = tokens.size() > position + 1 ? tokens.get(position + 1) : null;
             if (next != null && next.type == TokenType.SEPARATOR && next.value.equals("(")) {
-                parseExpression(); // function call is a valid expression
+                parseExpression();
                 consume(TokenType.SEPARATOR, ";");
             } else {
                 parseAssignment();
                 consume(TokenType.SEPARATOR, ";");
             }
-        }
- else {
+        } else {
             throw new RuntimeException("Bilinmeyen ifade türü: " + peek());
+        }
+    }
+
+    private boolean isTypeKeyword(String value) {
+        return value.equals("int") || value.equals("bool") || value.equals("string") || value.equals("void");
+    }
+
+    private void parseVariableDeclaration() {
+        Token typeToken = consume(TokenType.KEYWORD);
+        String type = typeToken.value;
+        consume(TokenType.IDENTIFIER);
+
+        boolean isArray = false;
+        if (match(TokenType.SEPARATOR, "[") && tokens.size() > position + 1 &&
+            tokens.get(position + 1).type == TokenType.SEPARATOR &&
+            tokens.get(position + 1).value.equals("]")) {
+            consume(TokenType.SEPARATOR, "[");
+            consume(TokenType.SEPARATOR, "]");
+            isArray = true;
+        }
+
+        Token eq = consume(TokenType.OPERATOR);
+        if (!eq.value.equals("=")) throw new RuntimeException("Expected '=' in declaration");
+
+        if (isArray && match(TokenType.SEPARATOR, "[")) {
+            consume(TokenType.SEPARATOR, "[");
+            if (!match(TokenType.SEPARATOR, "]")) {
+                validateValueType(type, false);
+                while (match(TokenType.SEPARATOR, ",")) {
+                    consume(TokenType.SEPARATOR, ",");
+                    validateValueType(type, false);
+                }
+            }
+            consume(TokenType.SEPARATOR, "]");
+        } else {
+            validateValueType(type, false);
+        }
+
+        consume(TokenType.SEPARATOR, ";");
+    }
+
+    private void validateValueType(String type, boolean isArray) {
+        if (!isArray) {
+            if (type.equals("int") && !match(TokenType.NUMBER)) {
+                throw new RuntimeException("Only integer literals can be assigned to int");
+            } else if (type.equals("bool") && !(match(TokenType.KEYWORD, "true") || match(TokenType.KEYWORD, "false") || match(TokenType.KEYWORD, "null"))) {
+                throw new RuntimeException("Only true, false, or null can be assigned to bool");
+            } else if (type.equals("string") && !match(TokenType.STRING)) {
+                throw new RuntimeException("Only string literals can be assigned to string");
+            }
+            parseExpression();
         }
     }
 
     private void parseAssignment() {
         consume(TokenType.IDENTIFIER);
+
+        // Array assignment (arr[0] = ...)
+        if (match(TokenType.SEPARATOR, "[")) {
+            consume(TokenType.SEPARATOR, "[");
+            parseExpression();
+            consume(TokenType.SEPARATOR, "]");
+        }
+
         Token eq = consume(TokenType.OPERATOR);
         if (!eq.value.equals("=")) throw new RuntimeException("Expected '='");
         parseExpression();
     }
+
+
 
     private void parseIfStatement() {
         consume(TokenType.KEYWORD, "if");
@@ -174,19 +239,24 @@ public class Parser {
 
     private void parseFunctionDeclaration() {
         consume(TokenType.KEYWORD, "function");
+        if (isTypeKeyword(peek().value)) {
+            consume(TokenType.KEYWORD);
+        }
         consume(TokenType.IDENTIFIER);
         consume(TokenType.SEPARATOR, "(");
-        if (peek().type == TokenType.IDENTIFIER) {
-            parseParameterList();
+        if (isTypeKeyword(peek().value)) {
+            parseTypedParameterList();
         }
         consume(TokenType.SEPARATOR, ")");
         parseBlock();
     }
 
-    private void parseParameterList() {
+    private void parseTypedParameterList() {
+        consume(TokenType.KEYWORD);
         consume(TokenType.IDENTIFIER);
         while (match(TokenType.SEPARATOR, ",")) {
             consume(TokenType.SEPARATOR, ",");
+            consume(TokenType.KEYWORD);
             consume(TokenType.IDENTIFIER);
         }
     }
@@ -234,7 +304,7 @@ public class Parser {
     private void parseComparison() {
         parseAdditive();
         while (match(TokenType.OPERATOR, "<") || match(TokenType.OPERATOR, ">") ||
-               match(TokenType.OPERATOR, "<=") || match(TokenType.OPERATOR, ">=")) {
+                match(TokenType.OPERATOR, "<=") || match(TokenType.OPERATOR, ">=")) {
             consume(TokenType.OPERATOR);
             parseAdditive();
         }
@@ -267,7 +337,12 @@ public class Parser {
 
     private void parsePrimary() {
         if (match(TokenType.IDENTIFIER)) {
-            consume(TokenType.IDENTIFIER);
+            Token ident = consume(TokenType.IDENTIFIER);
+            if (match(TokenType.SEPARATOR, "[")) {
+                consume(TokenType.SEPARATOR, "[");
+                parseExpression();
+                consume(TokenType.SEPARATOR, "]");
+            }
             if (match(TokenType.SEPARATOR, "(")) {
                 consume(TokenType.SEPARATOR, "(");
                 if (!match(TokenType.SEPARATOR, ")")) {
@@ -281,7 +356,7 @@ public class Parser {
             }
         } else if (match(TokenType.NUMBER) || match(TokenType.STRING)) {
             consume(peek().type);
-        } else if (match(TokenType.KEYWORD, "true") || match(TokenType.KEYWORD, "false")) {
+        } else if (match(TokenType.KEYWORD, "true") || match(TokenType.KEYWORD, "false") || match(TokenType.KEYWORD, "null")) {
             consume(TokenType.KEYWORD, peek().value);
         } else if (match(TokenType.SEPARATOR, "(")) {
             consume(TokenType.SEPARATOR, "(");
