@@ -1,3 +1,6 @@
+
+[Dokümantasyon için](./pd_rapor1.docx) 
+
 # Real-Time Syntax Highlighter
 
 Bu proje, Java ve Swing kullanılarak geliştirilmiş basit bir gerçek zamanlı sözdizimi vurgulayıcıdır. Kullanıcı metin girdikçe, kodun temel yapı taşlarını (anahtar kelimeler, tanımlayıcılar, sayılar, string'ler, yorumlar vb.) tanır ve bunları farklı renklerle vurgular.
