@@ -147,7 +147,6 @@ public class SyntaxHighlighterGUI {
             colorBox.setBackground(color);
             colorBox.setBorder(BorderFactory.createLineBorder(Color.BLACK));
 
-            // TokenType adını daha okunabilir hale getirmek için küçük değişiklik
             String displayName = switch (type) {
                 case KEYWORD    -> "Keyword";
                 case IDENTIFIER -> "Identifier";
@@ -248,11 +247,6 @@ public class SyntaxHighlighterGUI {
             }
         }
     }
-
-    /**
-     * LineNumberPanel: JTextPane içindeki satırları modelToView2D ile hesaplatarak
-     * doğru Y koordinatına numara yazan panel.
-     */
     private static class LineNumberPanel extends JPanel implements DocumentListener {
         private final JTextPane textPane;
         private final Font font = new Font(Font.MONOSPACED, Font.PLAIN, 12);
